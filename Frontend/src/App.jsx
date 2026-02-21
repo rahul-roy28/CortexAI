@@ -2,7 +2,7 @@ import "./App.css";
 import Sidebar from "./Sidebar.jsx";
 import ChatWindow from "./ChatWindow.jsx";
 import { MyContext } from "./MyContext.jsx";
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { v1 as uuidv1 } from "uuid";
 
 function App() {
@@ -12,7 +12,8 @@ function App() {
   const [prevChats, setPrevChats] = useState([]);
   const [newChat, setNewChat] = useState(true);
   const [allThreads, setAllThreads] = useState([]);
-  const getAllThreads = async () => {
+
+  const getAllThreads = useCallback(async () => {
     try {
       const response = await fetch("http://localhost:8080/api/thread");
       const res = await response.json();
@@ -26,9 +27,6 @@ function App() {
     } catch (error) {
       console.error("Error fetching threads:", error);
     }
-  };
-  useEffect(() => {
-    getAllThreads();
   }, []);
 
   const providerValues = {
@@ -45,7 +43,8 @@ function App() {
     allThreads,
     setAllThreads,
     getAllThreads,
-  }; // Define the value you want to provide to the context
+  };
+
   return (
     <div className="app">
       <MyContext.Provider value={providerValues}>

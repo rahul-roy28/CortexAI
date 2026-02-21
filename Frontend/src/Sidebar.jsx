@@ -13,23 +13,12 @@ function Sidebar() {
     setReply,
     setCurrThreadId,
     setPrevChats,
+    getAllThreads,
   } = useContext(MyContext);
-  const getAllThreads = async () => {
-    try {
-      const response = await fetch("http://localhost:8080/api/thread");
-      const res = await response.json();
-      const filteredData = res.map((thread) => ({
-        threadId: thread.threadId,
-        title: thread.title,
-      }));
-      setAllThreads(filteredData);
-    } catch (error) {
-      console.error("Error fetching threads:", error);
-    }
-  };
+
   useEffect(() => {
     getAllThreads();
-  }, []);
+  }, [getAllThreads]);
 
   const createNewChat = () => {
     setNewChat(true);
@@ -38,6 +27,7 @@ function Sidebar() {
     setCurrThreadId(uuidv1());
     setPrevChats([]);
   };
+
   const changeThread = async (newThreadId) => {
     setCurrThreadId(newThreadId);
     try {
@@ -52,21 +42,47 @@ function Sidebar() {
       console.error("Error fetching thread messages:", error);
     }
   };
+
+  const renameThread = async (threadId, currentTitle) => {
+    const nextTitle = window.prompt("Rename chat", currentTitle || "");
+    if (nextTitle === null) return;
+
+    const cleanTitle = nextTitle.trim();
+    if (!cleanTitle || cleanTitle === currentTitle) return;
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/thread/${threadId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: cleanTitle }),
+      });
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}));
+        throw new Error(errorPayload.error || "Failed to rename thread");
+      }
+
+      setAllThreads((prev) =>
+        prev.map((thread) =>
+          thread.threadId === threadId ? { ...thread, title: cleanTitle } : thread,
+        ),
+      );
+    } catch (error) {
+      console.error("Error renaming thread:", error);
+    }
+  };
+
   const deleteThread = async (threadId) => {
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/thread/${threadId}`,
-        {
-          method: "DELETE",
-        },
-      );
+      const response = await fetch(`http://localhost:8080/api/thread/${threadId}`, {
+        method: "DELETE",
+      });
       const res = await response.json();
       console.log(res);
-      // Refresh the thread list after deletion
-      setAllThreads((prev) =>
-        prev.filter((thread) => thread.threadId !== threadId),
-      );
-      // If the deleted thread is the current thread, reset to a new chat
+      setAllThreads((prev) => prev.filter((thread) => thread.threadId !== threadId));
+
       if (currThreadId === threadId) {
         createNewChat();
       }
@@ -74,6 +90,7 @@ function Sidebar() {
       console.error("Error deleting thread:", error);
     }
   };
+
   return (
     <section className="sidebar">
       <button onClick={createNewChat}>
@@ -87,20 +104,29 @@ function Sidebar() {
         </span>
       </button>
       <ul className="history">
-        {allThreads?.map((thread, idx) => (
+        {allThreads?.map((thread) => (
           <li
-            key={idx}
-            onClick={(e) => changeThread(thread.threadId)}
+            key={thread.threadId}
+            onClick={() => changeThread(thread.threadId)}
             className={thread.threadId === currThreadId ? "highlighted" : " "}
           >
-            {thread.title}
-            <i
-              className="fa-regular fa-trash-can"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteThread(thread.threadId);
-              }}
-            ></i>
+            <span className="threadTitle">{thread.title}</span>
+            <span className="threadActions">
+              <i
+                className="fa-regular fa-pen-to-square"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  renameThread(thread.threadId, thread.title);
+                }}
+              ></i>
+              <i
+                className="fa-regular fa-trash-can"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteThread(thread.threadId);
+                }}
+              ></i>
+            </span>
           </li>
         ))}
       </ul>
@@ -110,4 +136,5 @@ function Sidebar() {
     </section>
   );
 }
+
 export default Sidebar;

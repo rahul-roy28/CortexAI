@@ -2,7 +2,7 @@
   width: 100%;
   max-width: 800px;
   margin: 0 auto;
-  padding: 2rem 1rem; /* ✅ normal padding */
+  padding: 2rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 1.2rem;
@@ -33,26 +33,24 @@
 }
 
 .userMessage {
-  background-color: #323232;
-  padding: 10px 18px;
-  border-radius: 18px 18px 6px 18px;
+  background-color: #2f2f2f;
+  padding: 12px 18px;
+  border-radius: 20px;
   max-width: 70%;
-  width: fit-content;
-  word-break: break-word;
+  font-size: 0.95rem;
+}
+
+.assistantWrap {
+  width: 100%;
+  max-width: 780px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
 }
 
 .gptMessage {
-  /* background-color: #1e1e1e;
-  padding: 14px 18px;
-  border-radius: 18px 18px 18px 6px;
-  max-width: 100%;
-  width: fit-content;
-  text-align: left;
-  word-break: break-word;
-  white-space: pre-wrap;
-  line-height: 1.6; */
   width: 100%;
-  max-width: 780px;
   margin: 0;
   padding: 0;
   background: transparent;
@@ -61,20 +59,35 @@
   line-height: 1.7;
   font-size: 0.95rem;
 }
-.userMessage {
-  background-color: #2f2f2f;
-  padding: 12px 18px;
-  border-radius: 20px;
-  max-width: 70%;
-  font-size: 0.95rem;
+
+.assistantActions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-/* Markdown paragraphs spacing */
+.copyBtn {
+  border: 1px solid #3a3a3a;
+  background: #272727;
+  color: #d0d0d0;
+  border-radius: 8px;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copyBtn:hover {
+  background: #323232;
+}
+
 .gptMessage p {
   margin: 0 0 14px 0;
 }
 
-/* Code blocks */
 .gptMessage pre {
   padding: 16px;
   border-radius: 12px;
