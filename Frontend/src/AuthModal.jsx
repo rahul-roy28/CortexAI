@@ -1,5 +1,6 @@
 import { useState } from "react";
 import "./AuthModal.css";
+import BASE_URL from "./config.js";
 
 function AuthModal({ onAuthSuccess }) {
   const [mode, setMode] = useState("signup"); // "signup" | "login"
@@ -47,8 +48,8 @@ function AuthModal({ onAuthSuccess }) {
 
     const endpoint =
       mode === "signup"
-        ? "http://localhost:8080/api/auth/signup"
-        : "http://localhost:8080/api/auth/login";
+        ? `${BASE_URL}/api/auth/signup`
+        : `${BASE_URL}/api/auth/login`;
 
     const body =
       mode === "signup"
