@@ -1,5 +1,6 @@
 import "./ChatWindow.css";
 import Chat from "./Chat.jsx";
+import AuthModal from "./AuthModal.jsx";
 import { MyContext } from "./MyContext.jsx";
 import { useContext, useEffect, useRef, useState } from "react";
 import { ScaleLoader } from "react-spinners";
@@ -13,6 +14,13 @@ function ChatWindow() {
     setPrevChats,
     setNewChat,
     getAllThreads,
+    // Auth
+    token,
+    user,
+    logout,
+    openAuthModal,
+    showAuthModal,
+    handleAuthSuccess,
   } = useContext(MyContext);
 
   const [loading, setLoading] = useState(false);
@@ -20,10 +28,24 @@ function ChatWindow() {
   const abortControllerRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Close dropdown when clicking outside (but not when clicking inside the dropdown itself)
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (
+        isOpen &&
+        !e.target.closest(".headerActions") &&
+        !e.target.closest(".dropDown")
+      ) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isOpen]);
+
   useEffect(() => {
     const inputEl = inputRef.current;
     if (!inputEl) return;
-
     inputEl.style.height = "auto";
     const maxHeight = 180;
     const nextHeight = Math.min(inputEl.scrollHeight, maxHeight);
@@ -45,6 +67,12 @@ function ChatWindow() {
   };
 
   const sendMessage = async () => {
+    // If user is not logged in, show auth modal instead
+    if (!token) {
+      openAuthModal();
+      return;
+    }
+
     const trimmedPrompt = prompt.trim();
     if (loading || !trimmedPrompt) return;
 
@@ -65,7 +93,10 @@ function ChatWindow() {
     try {
       const response = await fetch("http://localhost:8080/api/chat/stream", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           message: trimmedPrompt,
           threadId: currThreadId,
@@ -170,14 +201,17 @@ function ChatWindow() {
   };
 
   const regenerateReply = async () => {
-    if (loading) return;
+    if (loading || !token) return;
     setLoading(true);
     try {
       const response = await fetch(
         "http://localhost:8080/api/chat/regenerate",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ threadId: currThreadId }),
         },
       );
@@ -211,8 +245,20 @@ function ChatWindow() {
     prevChats.some((chat) => chat.role === "user") &&
     prevChats.some((chat) => chat.role === "assistant");
 
+  // Get initials from full name for avatar
+  const getInitials = (name) => {
+    if (!name) return "";
+    const parts = name.trim().split(" ");
+    return parts.length >= 2
+      ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+      : parts[0][0].toUpperCase();
+  };
+
   return (
     <div className="chatWindow">
+      {/* Auth Modal */}
+      {showAuthModal && <AuthModal onAuthSuccess={handleAuthSuccess} />}
+
       {/* ── Navbar ── */}
       <div className="navbar">
         <span className="icons">
@@ -222,28 +268,55 @@ function ChatWindow() {
             style={{ marginLeft: "6px", fontSize: "0.75rem", color: "#888" }}
           ></i>
         </span>
+
         <div className="headerActions">
-          <div className="userIconDiv" onClick={() => setIsOpen(!isOpen)}>
-            <span className="userIcon">
-              <i
-                className="fa-solid fa-user"
-                style={{ fontSize: "0.8rem" }}
-              ></i>
-            </span>
-          </div>
+          {user ? (
+            /* Logged in: show avatar with initials */
+            <div className="userIconDiv" onClick={() => setIsOpen(!isOpen)}>
+              <span className="userIcon userIconInitials" title={user.fullName}>
+                {getInitials(user.fullName)}
+              </span>
+            </div>
+          ) : (
+            /* Not logged in: show plain user icon */
+            <div
+              className="userIconDiv"
+              onClick={openAuthModal}
+              title="Sign in"
+            >
+              <span className="userIcon">
+                <i
+                  className="fa-solid fa-user"
+                  style={{ fontSize: "0.8rem" }}
+                ></i>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ── Dropdown ── */}
-      {isOpen && (
+      {/* ── Dropdown (only when logged in) ── */}
+      {isOpen && user && (
         <div className="dropDown">
+          {/* User info at top */}
+          <div className="dropDownUser">
+            <span className="dropDownName">{user.fullName}</span>
+            <span className="dropDownEmail">{user.email}</span>
+          </div>
+          <div className="dropDownDivider" />
           <div className="dropDownItem">
             <i className="fa-solid fa-cloud-arrow-up"></i> Upgrade plan
           </div>
           <div className="dropDownItem">
             <i className="fa-solid fa-gear"></i> Settings
           </div>
-          <div className="dropDownItem">
+          <div
+            className="dropDownItem dropDownLogout"
+            onClick={() => {
+              setIsOpen(false);
+              logout();
+            }}
+          >
             <i className="fa-solid fa-arrow-right-from-bracket"></i> Log out
           </div>
         </div>
@@ -253,19 +326,27 @@ function ChatWindow() {
       <Chat
         onRegenerate={regenerateReply}
         canRegenerate={canRegenerate && !loading}
+        loading={loading}
       />
 
       <ScaleLoader color="#00bfff" loading={loading} />
 
       {/* ── Input area ── */}
       <div className="chatInput">
-        <div className="inputBox">
+        <div
+          className="inputBox"
+          onClick={() => {
+            if (!token) openAuthModal();
+          }}
+        >
           {/* Row 1: Textarea */}
           <textarea
             ref={inputRef}
-            placeholder="Ask anything..."
+            placeholder={
+              token ? "Ask anything..." : "Sign in to start chatting..."
+            }
             value={prompt}
-            disabled={loading}
+            disabled={loading || !token}
             rows={1}
             onChange={(e) => setPrompt(e.target.value)}
             onKeyDown={(e) => {
@@ -278,46 +359,56 @@ function ChatWindow() {
 
           {/* Row 2: Toolbar */}
           <div className="inputToolbar">
-            {/* Left: attach + tool pills */}
             <div className="leftTools">
               <button
                 type="button"
                 className="inputIconBtn"
                 title="Attach file"
                 aria-label="Attach file"
+                disabled={!token}
               >
                 <i className="fa-solid fa-paperclip"></i>
               </button>
-
-              <button type="button" className="toolPillBtn" title="Web search">
-                <i className="fa-solid fa-globe"></i>
-                Search
+              <button
+                type="button"
+                className="toolPillBtn"
+                title="Web search"
+                disabled={!token}
+              >
+                <i className="fa-solid fa-globe"></i> Search
               </button>
-
-              <button type="button" className="toolPillBtn" title="Deep think">
-                <i className="fa-solid fa-brain"></i>
-                Reason
+              <button
+                type="button"
+                className="toolPillBtn"
+                title="Deep think"
+                disabled={!token}
+              >
+                <i className="fa-solid fa-brain"></i> Reason
               </button>
             </div>
 
-            {/* Right: status dot + mic + send/stop */}
             <div className="rightTools">
               <span className="statusDot" aria-hidden="true"></span>
-
               <button
                 type="button"
                 className="inputIconBtn"
                 title="Voice input"
                 aria-label="Voice input"
+                disabled={!token}
               >
                 <i className="fa-solid fa-microphone"></i>
               </button>
-
               <button
                 id="submit"
                 type="button"
                 onClick={loading ? stopGenerating : sendMessage}
-                title={loading ? "Stop generating" : "Send message"}
+                title={
+                  loading
+                    ? "Stop generating"
+                    : token
+                      ? "Send message"
+                      : "Sign in to chat"
+                }
                 aria-label={loading ? "Stop generating" : "Send message"}
               >
                 <i

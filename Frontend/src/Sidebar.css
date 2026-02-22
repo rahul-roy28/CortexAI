@@ -119,3 +119,18 @@
   background-color: rgba(180, 180, 180, 0.05);
   border-radius: 10px;
 }
+
+/* Sign-in hint shown when user is not logged in */
+.sidebarSignInHint {
+  list-style: none;
+  color: #555;
+  font-size: 0.82rem;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: default;
+  border-radius: 8px;
+  border: 1px dashed #333;
+  margin-top: 0.5rem;
+}

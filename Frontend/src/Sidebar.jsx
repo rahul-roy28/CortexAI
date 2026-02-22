@@ -14,11 +14,12 @@ function Sidebar() {
     setCurrThreadId,
     setPrevChats,
     getAllThreads,
+    token,
   } = useContext(MyContext);
 
   useEffect(() => {
-    getAllThreads();
-  }, [getAllThreads]);
+    if (token) getAllThreads();
+  }, [getAllThreads, token]);
 
   const createNewChat = () => {
     setNewChat(true);
@@ -29,10 +30,14 @@ function Sidebar() {
   };
 
   const changeThread = async (newThreadId) => {
+    if (!token) return;
     setCurrThreadId(newThreadId);
     try {
       const response = await fetch(
         `http://localhost:8080/api/thread/${newThreadId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
       const res = await response.json();
       setPrevChats(res);
@@ -44,6 +49,7 @@ function Sidebar() {
   };
 
   const renameThread = async (threadId, currentTitle) => {
+    if (!token) return;
     const nextTitle = window.prompt("Rename chat", currentTitle || "");
     if (nextTitle === null) return;
 
@@ -51,13 +57,17 @@ function Sidebar() {
     if (!cleanTitle || cleanTitle === currentTitle) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/api/thread/${threadId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await fetch(
+        `http://localhost:8080/api/thread/${threadId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ title: cleanTitle }),
         },
-        body: JSON.stringify({ title: cleanTitle }),
-      });
+      );
 
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));
@@ -66,7 +76,9 @@ function Sidebar() {
 
       setAllThreads((prev) =>
         prev.map((thread) =>
-          thread.threadId === threadId ? { ...thread, title: cleanTitle } : thread,
+          thread.threadId === threadId
+            ? { ...thread, title: cleanTitle }
+            : thread,
         ),
       );
     } catch (error) {
@@ -75,17 +87,21 @@ function Sidebar() {
   };
 
   const deleteThread = async (threadId) => {
+    if (!token) return;
     try {
-      const response = await fetch(`http://localhost:8080/api/thread/${threadId}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `http://localhost:8080/api/thread/${threadId}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       const res = await response.json();
       console.log(res);
-      setAllThreads((prev) => prev.filter((thread) => thread.threadId !== threadId));
-
-      if (currThreadId === threadId) {
-        createNewChat();
-      }
+      setAllThreads((prev) =>
+        prev.filter((thread) => thread.threadId !== threadId),
+      );
+      if (currThreadId === threadId) createNewChat();
     } catch (error) {
       console.error("Error deleting thread:", error);
     }
@@ -103,33 +119,42 @@ function Sidebar() {
           <i className="fa-regular fa-pen-to-square"></i>
         </span>
       </button>
+
       <ul className="history">
-        {allThreads?.map((thread) => (
-          <li
-            key={thread.threadId}
-            onClick={() => changeThread(thread.threadId)}
-            className={thread.threadId === currThreadId ? "highlighted" : " "}
-          >
-            <span className="threadTitle">{thread.title}</span>
-            <span className="threadActions">
-              <i
-                className="fa-regular fa-pen-to-square"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  renameThread(thread.threadId, thread.title);
-                }}
-              ></i>
-              <i
-                className="fa-regular fa-trash-can"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteThread(thread.threadId);
-                }}
-              ></i>
-            </span>
+        {token ? (
+          allThreads?.map((thread) => (
+            <li
+              key={thread.threadId}
+              onClick={() => changeThread(thread.threadId)}
+              className={thread.threadId === currThreadId ? "highlighted" : " "}
+            >
+              <span className="threadTitle">{thread.title}</span>
+              <span className="threadActions">
+                <i
+                  className="fa-regular fa-pen-to-square"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    renameThread(thread.threadId, thread.title);
+                  }}
+                ></i>
+                <i
+                  className="fa-regular fa-trash-can"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteThread(thread.threadId);
+                  }}
+                ></i>
+              </span>
+            </li>
+          ))
+        ) : (
+          <li className="sidebarSignInHint">
+            <i className="fa-solid fa-lock" style={{ fontSize: "0.8rem" }}></i>
+            Sign in to see your chats
           </li>
-        ))}
+        )}
       </ul>
+
       <div className="sign">
         <p>By RahulRoy &hearts;</p>
       </div>
