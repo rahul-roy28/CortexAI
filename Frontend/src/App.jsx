@@ -3,6 +3,7 @@ import Sidebar from "./Sidebar.jsx";
 import ChatWindow from "./ChatWindow.jsx";
 import { MyContext } from "./MyContext.jsx";
 import { useState, useCallback, useRef } from "react";
+import BASE_URL from "./config.js";
 import { v1 as uuidv1 } from "uuid";
 
 function App() {
@@ -38,7 +39,7 @@ function App() {
   // ── Logout ──
   const logout = useCallback(async () => {
     try {
-      await fetch("http://localhost:8080/api/auth/logout", { method: "POST" });
+      await fetch(`${BASE_URL}/api/auth/logout`, { method: "POST" });
     } catch {
       // ignore network errors on logout
     }
@@ -62,7 +63,7 @@ function App() {
       const activeToken = tkn || tokenRef.current;
       if (!activeToken) return;
       try {
-        const response = await fetch("http://localhost:8080/api/thread", {
+        const response = await fetch(`${BASE_URL}/api/thread`, {
           headers: { Authorization: `Bearer ${activeToken}` },
         });
         if (response.status === 401) {

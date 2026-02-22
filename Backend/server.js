@@ -6,10 +6,18 @@ import chatRoutes from "./routes/chat.js";
 import authRoutes from "./routes/authRoutes.js";
 
 const app = express();
-const PORT = 8080;
+// Render assigns its own PORT via environment variable
+const PORT = process.env.PORT || 8080;
 
 app.use(express.json());
-app.use(cors());
+
+// Restrict CORS to your deployed frontend URL (set FRONTEND_URL in Render env vars)
+// Falls back to localhost for local development
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  }),
+);
 
 // Auth routes (public - no middleware)
 app.use("/api/auth", authRoutes);

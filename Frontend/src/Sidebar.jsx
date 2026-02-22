@@ -2,6 +2,7 @@ import "./Sidebar.css";
 import { useContext, useEffect } from "react";
 import { MyContext } from "./MyContext.jsx";
 import { v1 as uuidv1 } from "uuid";
+import BASE_URL from "./config.js";
 
 function Sidebar() {
   const {
@@ -33,12 +34,9 @@ function Sidebar() {
     if (!token) return;
     setCurrThreadId(newThreadId);
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/thread/${newThreadId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const response = await fetch(`${BASE_URL}/api/thread/${newThreadId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const res = await response.json();
       setPrevChats(res);
       setNewChat(false);
@@ -57,17 +55,14 @@ function Sidebar() {
     if (!cleanTitle || cleanTitle === currentTitle) return;
 
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/thread/${threadId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ title: cleanTitle }),
+      const response = await fetch(`${BASE_URL}/api/thread/${threadId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ title: cleanTitle }),
+      });
 
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));
@@ -89,13 +84,10 @@ function Sidebar() {
   const deleteThread = async (threadId) => {
     if (!token) return;
     try {
-      const response = await fetch(
-        `http://localhost:8080/api/thread/${threadId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
+      const response = await fetch(`${BASE_URL}/api/thread/${threadId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const res = await response.json();
       console.log(res);
       setAllThreads((prev) =>

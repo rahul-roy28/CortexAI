@@ -4,6 +4,7 @@ import AuthModal from "./AuthModal.jsx";
 import { MyContext } from "./MyContext.jsx";
 import { useContext, useEffect, useRef, useState } from "react";
 import { ScaleLoader } from "react-spinners";
+import BASE_URL from "./config.js";
 
 function ChatWindow() {
   const {
@@ -91,7 +92,7 @@ function ChatWindow() {
     setPrompt("");
 
     try {
-      const response = await fetch("http://localhost:8080/api/chat/stream", {
+      const response = await fetch(`${BASE_URL}/api/chat/stream`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -204,17 +205,14 @@ function ChatWindow() {
     if (loading || !token) return;
     setLoading(true);
     try {
-      const response = await fetch(
-        "http://localhost:8080/api/chat/regenerate",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ threadId: currThreadId }),
+      const response = await fetch(`${BASE_URL}/api/chat/regenerate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ threadId: currThreadId }),
+      });
 
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));
