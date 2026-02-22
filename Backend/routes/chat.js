@@ -5,8 +5,12 @@ import {
   getOpenAIAPIResponse,
   streamOpenAIAPIResponse,
 } from "../utils/openai.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+// Apply auth middleware to ALL chat routes
+router.use(authMiddleware);
 
 const buildThreadTitle = async (firstMessage) => {
   const titlePrompt = [
@@ -32,38 +36,25 @@ const buildThreadTitle = async (firstMessage) => {
   return normalizedTitle;
 };
 
-// Test
-router.post("/test", async (req, res) => {
-  try {
-    const thread = new Thread({
-      threadId: "testThreadId_2",
-      title: "Test Thread_2",
-    });
-    const response = await thread.save();
-    res.send(response);
-  } catch (err) {
-    console.log("Error creating thread:", err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-// Get all threads
+// Get all threads for the logged-in user
 router.get("/thread", async (req, res) => {
   try {
-    const threads = await Thread.find({}).sort({ updatedAt: -1 });
+    const threads = await Thread.find({ userId: req.user._id })
+      .sort({ updatedAt: -1 })
+      .select("threadId title updatedAt createdAt"); // exclude messages for list view
     res.json(threads);
   } catch (err) {
     console.log("Error fetching threads:", err);
-    res.status(500).json({ error: "Faild to fatch threads" });
+    res.status(500).json({ error: "Failed to fetch threads" });
   }
 });
 
-// Get a specific thread by ID
+// Get a specific thread by ID (must belong to logged-in user)
 router.get("/thread/:threadId", async (req, res) => {
   const { threadId } = req.params;
 
   try {
-    const thread = await Thread.findOne({ threadId });
+    const thread = await Thread.findOne({ threadId, userId: req.user._id });
 
     if (!thread) {
       return res.status(404).json({ error: "Thread not found" });
@@ -79,7 +70,8 @@ router.get("/thread/:threadId", async (req, res) => {
 // Rename thread by ID
 router.patch("/thread/:threadId", async (req, res) => {
   const { threadId } = req.params;
-  const cleanTitle = typeof req.body?.title === "string" ? req.body.title.trim() : "";
+  const cleanTitle =
+    typeof req.body?.title === "string" ? req.body.title.trim() : "";
 
   if (!cleanTitle) {
     return res.status(400).json({ error: "Non-empty title is required" });
@@ -87,7 +79,7 @@ router.patch("/thread/:threadId", async (req, res) => {
 
   try {
     const thread = await Thread.findOneAndUpdate(
-      { threadId },
+      { threadId, userId: req.user._id },
       { title: cleanTitle, updatedAt: new Date() },
       { new: true },
     );
@@ -108,13 +100,16 @@ router.delete("/thread/:threadId", async (req, res) => {
   const { threadId } = req.params;
 
   try {
-    const thread = await Thread.findOneAndDelete({ threadId });
+    const thread = await Thread.findOneAndDelete({
+      threadId,
+      userId: req.user._id,
+    });
 
     if (!thread) {
       return res.status(404).json({ error: "Thread not found" });
-    } else {
-      res.status(200).json({ success: "Thread deleted successfully" });
     }
+
+    res.status(200).json({ success: "Thread deleted successfully" });
   } catch (err) {
     console.log("Error deleting thread:", err);
     res.status(500).json({ error: "Failed to delete thread" });
@@ -133,11 +128,12 @@ router.post("/chat", async (req, res) => {
   }
 
   try {
-    let thread = await Thread.findOne({ threadId });
+    let thread = await Thread.findOne({ threadId, userId: req.user._id });
     if (!thread) {
       const smartTitle = await buildThreadTitle(cleanMessage);
       thread = new Thread({
         threadId,
+        userId: req.user._id,
         title: smartTitle,
         messages: [{ role: "user", content: cleanMessage }],
       });
@@ -150,6 +146,7 @@ router.post("/chat", async (req, res) => {
     thread.messages.push({ role: "assistant", content: assistantReply });
     thread.updatedAt = new Date();
     await thread.save();
+
     res.json({ reply: assistantReply });
   } catch (err) {
     console.log("Error processing chat message:", err);
@@ -173,11 +170,12 @@ router.post("/chat/stream", async (req, res) => {
   res.setHeader("Connection", "keep-alive");
 
   try {
-    let thread = await Thread.findOne({ threadId });
+    let thread = await Thread.findOne({ threadId, userId: req.user._id });
     if (!thread) {
       const smartTitle = await buildThreadTitle(cleanMessage);
       thread = new Thread({
         threadId,
+        userId: req.user._id,
         title: smartTitle,
         messages: [{ role: "user", content: cleanMessage }],
       });
@@ -185,9 +183,12 @@ router.post("/chat/stream", async (req, res) => {
       thread.messages.push({ role: "user", content: cleanMessage });
     }
 
-    const assistantReply = await streamOpenAIAPIResponse(thread.messages, (token) => {
-      res.write(`data: ${JSON.stringify({ token })}\n\n`);
-    });
+    const assistantReply = await streamOpenAIAPIResponse(
+      thread.messages,
+      (token) => {
+        res.write(`data: ${JSON.stringify({ token })}\n\n`);
+      },
+    );
 
     const finalReply = assistantReply || FALLBACK_REPLY;
 
@@ -214,7 +215,7 @@ router.post("/chat/regenerate", async (req, res) => {
   }
 
   try {
-    const thread = await Thread.findOne({ threadId });
+    const thread = await Thread.findOne({ threadId, userId: req.user._id });
     if (!thread) {
       return res.status(404).json({ error: "Thread not found" });
     }
@@ -229,7 +230,9 @@ router.post("/chat/regenerate", async (req, res) => {
 
     const hasUserMessage = thread.messages.some((msg) => msg.role === "user");
     if (!hasUserMessage) {
-      return res.status(400).json({ error: "No user prompt found to regenerate" });
+      return res
+        .status(400)
+        .json({ error: "No user prompt found to regenerate" });
     }
 
     const assistantReply = await getOpenAIAPIResponse(thread.messages);

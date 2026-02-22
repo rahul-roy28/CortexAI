@@ -3,6 +3,7 @@ import "dotenv/config";
 import cors from "cors";
 import mongoose from "mongoose";
 import chatRoutes from "./routes/chat.js";
+import authRoutes from "./routes/authRoutes.js";
 
 const app = express();
 const PORT = 8080;
@@ -10,6 +11,10 @@ const PORT = 8080;
 app.use(express.json());
 app.use(cors());
 
+// Auth routes (public - no middleware)
+app.use("/api/auth", authRoutes);
+
+// Chat routes (protected - auth middleware applied inside chat.js)
 app.use("/api", chatRoutes);
 
 app.listen(PORT, () => {
