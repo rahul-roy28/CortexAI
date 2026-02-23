@@ -3,6 +3,7 @@ import { useContext, useEffect } from "react";
 import { MyContext } from "./MyContext.jsx";
 import { v1 as uuidv1 } from "uuid";
 import BASE_URL from "./config.js";
+import logo from "./assets/cortexai_logo.png";
 
 function Sidebar() {
   const {
@@ -102,11 +103,7 @@ function Sidebar() {
   return (
     <section className="sidebar">
       <button onClick={createNewChat}>
-        <img
-          src="src/assets/cortexai_logo.png"
-          alt="CortexAI logo"
-          className="logo"
-        />
+        <img src={logo} alt="CortexAI logo" className="logo" />
         <span>
           <i className="fa-regular fa-pen-to-square"></i>
         </span>
